@@ -1,0 +1,14 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Стиль: предпочитаем const конструкторы
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    # Типы: явная типизация для публичных API
+    always_declare_return_types: true
+    # Импорты: порядок и относительные пути внутри lib/
+    prefer_relative_imports: true
+    directives_ordering: true
+    # Безопасность: избегаем implicit dynamic
+    avoid_dynamic_calls: true

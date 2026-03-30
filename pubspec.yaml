@@ -1,0 +1,69 @@
+name: rag_chat
+description: "Чат с ИИ для Университета правосудия — RAG-система"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Управление состоянием (BLoC)
+  flutter_bloc: ^8.1.3
+  bloc: ^8.1.2
+  equatable: ^2.0.5
+
+  # Роутинг
+  go_router: ^13.0.0
+
+  # HTTP-клиент
+  dio: ^5.4.0
+
+  # Локальное хранение (токены, кэш)
+  shared_preferences: ^2.2.2
+
+  # Функциональное программирование (Either, Option)
+  dartz: ^0.10.1
+
+  # Внедрение зависимостей
+  get_it: ^7.6.4
+  injectable: ^2.3.2
+
+  # JSON-сериализация
+  json_annotation: ^4.8.1
+  freezed_annotation: ^2.4.1
+
+  # Markdown-рендеринг ответов ИИ
+  flutter_markdown: ^0.6.18
+
+  # Подсветка синтаксиса кодовых блоков
+  flutter_highlight: ^0.7.0
+
+  # Копирование в буфер обмена
+  # (на web работает через dart:html, но для кросс-платформы используем пакет)
+
+  # Иконки
+  flutter_svg: ^2.0.9
+
+  # Тосты / снэкбары
+  fluttertoast: ^8.2.4
+
+  # Интернационализация (на будущее)
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  build_runner: ^2.4.7
+  json_serializable: ^6.7.1
+  freezed: ^2.4.5
+  bloc_test: ^9.1.5
+  mocktail: ^1.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
