@@ -21,7 +21,7 @@
 
 - Flutter SDK ≥ 3.41.0
 - Dart SDK ≥ 3.2.0
-- Backend API (FastAPI) — см. [API_CONTRACT.md](./API_CONTRACT.md)
+- Backend API (FastAPI) — см. корневые [api-contracts.md](../api-contracts.md) и [api-endpoints-models.md](../api-endpoints-models.md)
 
 ## Быстрый старт
 
@@ -114,7 +114,7 @@ dart format lib/ test/
 ## Работа с API
 
 Клиент — чистый frontend. Вся бизнес-логика (права доступа, RAG, LLM) на backend.
-Полный контракт API: [API_CONTRACT.md](./API_CONTRACT.md).
+Полный контракт API: [../api-contracts.md](../api-contracts.md) и [../api-endpoints-models.md](../api-endpoints-models.md).
 
 ## Адаптивность
 

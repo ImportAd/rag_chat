@@ -159,6 +159,11 @@ class _SourceTypeIndicator extends StatelessWidget {
         label = 'Ответ без опоры на внутреннюю базу';
         color = colors.primary;
         break;
+      case SourceType.offTopic:
+        icon = Icons.explore_off_outlined;
+        label = 'Запрос вне тематики базы знаний';
+        color = Colors.deepOrange;
+        break;
     }
 
     return Row(

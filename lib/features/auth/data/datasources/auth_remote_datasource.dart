@@ -39,11 +39,12 @@ class AuthRemoteDataSource {
       (failure) => throw Exception(failure.message),
       (response) async {
         final data = response.data as Map<String, dynamic>;
+        final tokens = data['tokens'] as Map<String, dynamic>;
 
         // Сохраняем токены
         await _tokenStorage.saveTokens(
-          accessToken: data['access_token'] as String,
-          refreshToken: data['refresh_token'] as String,
+          accessToken: tokens['access_token'] as String,
+          refreshToken: tokens['refresh_token'] as String,
         );
 
         // Парсим пользователя
@@ -73,10 +74,11 @@ class AuthRemoteDataSource {
       (failure) => throw Exception(failure.message),
       (response) async {
         final data = response.data as Map<String, dynamic>;
+        final tokens = data['tokens'] as Map<String, dynamic>;
 
         await _tokenStorage.saveTokens(
-          accessToken: data['access_token'] as String,
-          refreshToken: data['refresh_token'] as String,
+          accessToken: tokens['access_token'] as String,
+          refreshToken: tokens['refresh_token'] as String,
         );
 
         return UserModel.fromJson(data['user'] as Map<String, dynamic>);
@@ -100,7 +102,13 @@ class AuthRemoteDataSource {
   Future<void> logout() async {
     // Пытаемся сообщить серверу о выходе (не критично, если упадёт)
     try {
-      await _apiClient.post(ApiEndpoints.logout);
+      final refreshToken = _tokenStorage.refreshToken;
+      if (refreshToken != null && refreshToken.isNotEmpty) {
+        await _apiClient.post(
+          ApiEndpoints.logout,
+          data: {'refresh_token': refreshToken},
+        );
+      }
     } catch (_) {
       // Сервер может быть недоступен — не страшно
     }

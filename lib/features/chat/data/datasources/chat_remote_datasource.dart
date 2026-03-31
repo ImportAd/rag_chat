@@ -39,7 +39,10 @@ class ChatRemoteDataSource {
 
   /// Создать новый диалог
   Future<ConversationModel> createConversation() async {
-    final result = await _apiClient.post(ApiEndpoints.chats);
+    final result = await _apiClient.post(
+      ApiEndpoints.chats,
+      data: const <String, dynamic>{},
+    );
 
     return result.fold(
       (failure) => throw Exception(failure.message),
@@ -92,8 +95,10 @@ class ChatRemoteDataSource {
       (response) {
         final items = response.data['items'] as List;
         return items
-            .map(
-                (json) => MessageModel.fromJson(json as Map<String, dynamic>))
+            .map((json) => MessageModel.fromJson(
+                  json as Map<String, dynamic>,
+                  conversationId: conversationId,
+                ))
             .toList();
       },
     );
@@ -133,7 +138,10 @@ class ChatRemoteDataSource {
         }
 
         onStatusUpdate?.call(MessageStatus.completed);
-        return MessageModel.fromJson(data);
+        return MessageModel.fromJson(
+          data,
+          conversationId: conversationId,
+        );
       },
     );
   }

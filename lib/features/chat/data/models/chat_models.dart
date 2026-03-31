@@ -53,7 +53,10 @@ class MessageModel extends Message {
   });
 
   /// Создать из JSON-ответа backend
-  factory MessageModel.fromJson(Map<String, dynamic> json) {
+  factory MessageModel.fromJson(
+    Map<String, dynamic> json, {
+    required String conversationId,
+  }) {
     // Парсим список источников, если есть
     List<Source>? sources;
     if (json['sources'] != null) {
@@ -64,7 +67,7 @@ class MessageModel extends Message {
 
     return MessageModel(
       id: json['id'].toString(),
-      conversationId: json['conversation_id'].toString(),
+      conversationId: conversationId,
       role: _parseRole(json['role'] as String),
       content: json['content'] as String,
       status: _parseStatus(json['status'] as String? ?? 'completed'),
@@ -123,6 +126,8 @@ class MessageModel extends Message {
         return SourceType.ragNotFound;
       case 'no_rag':
         return SourceType.noRag;
+      case 'off_topic':
+        return SourceType.offTopic;
       default:
         return null;
     }
@@ -141,7 +146,7 @@ class SourceModel extends Source {
 
   factory SourceModel.fromJson(Map<String, dynamic> json) {
     return SourceModel(
-      documentName: json['document_name'] as String,
+      documentName: json['doc_name'] as String,
       description: json['description'] as String?,
       relevanceScore: (json['relevance_score'] as num?)?.toDouble(),
     );
