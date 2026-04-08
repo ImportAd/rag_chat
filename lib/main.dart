@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'app/app.dart';
 import 'app/di.dart';
 
@@ -11,6 +12,9 @@ import 'app/di.dart';
 Future<void> main() async {
   // Гарантируем инициализацию Flutter-движка
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Убираем # из URL — теперь это настоящие пути
+  usePathUrlStrategy();
 
   // Инициализируем все зависимости (SharedPreferences, Dio, BLoC и т.д.)
   await initDependencies();
