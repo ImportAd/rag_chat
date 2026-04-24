@@ -142,13 +142,22 @@ class SourceModel extends Source {
     required super.documentName,
     super.description,
     super.relevanceScore,
+    super.quote,
+    super.section,
+    super.documentType,
+    super.date,
   });
 
   factory SourceModel.fromJson(Map<String, dynamic> json) {
+    final rawDate = json['date'] as String?;
     return SourceModel(
       documentName: json['doc_name'] as String,
       description: json['description'] as String?,
       relevanceScore: (json['relevance_score'] as num?)?.toDouble(),
+      quote: json['quote'] as String?,
+      section: json['section'] as String?,
+      documentType: json['doc_type'] as String?,
+      date: rawDate != null ? DateTime.tryParse(rawDate) : null,
     );
   }
 }

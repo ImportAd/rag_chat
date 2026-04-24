@@ -164,12 +164,36 @@ class Source extends Equatable {
   /// Релевантность (0.0–1.0), если backend возвращает score
   final double? relevanceScore;
 
+  /// Цитата — конкретный фрагмент документа, на который опирается ответ.
+  final String? quote;
+
+  /// Раздел документа («4.2. Экзаменационные сессии»).
+  final String? section;
+
+  /// Тип документа («Положение», «Приказ», «План»).
+  final String? documentType;
+
+  /// Дата документа.
+  final DateTime? date;
+
   const Source({
     required this.documentName,
     this.description,
     this.relevanceScore,
+    this.quote,
+    this.section,
+    this.documentType,
+    this.date,
   });
 
   @override
-  List<Object?> get props => [documentName, description, relevanceScore];
+  List<Object?> get props => [
+        documentName,
+        description,
+        relevanceScore,
+        quote,
+        section,
+        documentType,
+        date,
+      ];
 }

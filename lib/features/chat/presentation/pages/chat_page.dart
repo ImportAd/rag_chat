@@ -14,6 +14,7 @@ import '../../../../core/widgets/common_widgets.dart';
 import '../../../../core/widgets/responsive_layout.dart';
 import '../../../auth/domain/entities/user.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
+import '../../domain/entities/chat_entities.dart';
 import '../bloc/chat_bloc.dart';
 import '../bloc/conversation_list_bloc.dart';
 import '../widgets/ai_status_indicator.dart';
@@ -70,6 +71,18 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _onConversationSelected(String id) => context.go('/chat/$id');
+
+  /// Открытие панели источника (в коммите 5 будет реальный SourcesPanel).
+  void _onSourceTap(int index, List<Source> sources) {
+    if (index < 1 || index > sources.length) return;
+    final src = sources[index - 1];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Источник [$index]: ${src.documentName}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   void _onSendMessage(String content) {
     final chatState = context.read<ChatBloc>().state;
@@ -252,8 +265,10 @@ class _ChatPageState extends State<ChatPage> {
                     controller: _scrollController,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: state.messages.length,
-                    itemBuilder: (_, i) =>
-                        MessageBubble(message: state.messages[i]),
+                    itemBuilder: (_, i) => MessageBubble(
+                      message: state.messages[i],
+                      onSourceTap: _onSourceTap,
+                    ),
                   ),
           ),
           if (state.isProcessing && state.aiStatus != null)

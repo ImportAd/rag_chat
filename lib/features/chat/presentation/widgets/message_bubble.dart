@@ -1,238 +1,519 @@
-/// Виджет «пузыря» сообщения в чате.
+/// Один элемент ленты сообщений.
 ///
-/// Визуально различает сообщения пользователя и ИИ-ассистента.
-/// Поддерживает Markdown-рендеринг, копирование и отображение источников.
+/// Дизайн без «пузырей» (как у Claude): аватар слева + контент справа.
+/// Для сообщений ассистента парсятся inline-сноски `[1][2][3]`, рендерятся
+/// чипы источников и статус-чип (RAG найден / не найден / общий / вне темы).
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
+import '../../../../app/theme.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../../domain/entities/chat_entities.dart';
 
-/// Пузырь одного сообщения в чате.
+/// Callback открытия панели источника.
+/// index — номер сноски (1-based), sources — список источников сообщения.
+typedef OnSourceTap = void Function(int index, List<Source> sources);
+
 class MessageBubble extends StatelessWidget {
   final Message message;
+  final OnSourceTap? onSourceTap;
 
-  const MessageBubble({super.key, required this.message});
+  const MessageBubble({super.key, required this.message, this.onSourceTap});
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == MessageRole.user;
-    final colors = Theme.of(context).colorScheme;
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width * 0.75,
-        ),
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          // Пользователь — primary, ИИ — surfaceVariant
-          color: isUser
-              ? colors.primary.withOpacity(0.12)
-              : colors.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 4),
-            bottomRight: Radius.circular(isUser ? 4 : 16),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 820),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl, vertical: AppSpacing.md,
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── Контент сообщения ───
-            if (isUser)
-              // Обычный текст для сообщений пользователя
-              SelectableText(
-                message.content,
-                style: Theme.of(context).textTheme.bodyLarge,
-              )
-            else
-              // Markdown-рендеринг для ответов ИИ
-              MarkdownBody(
-                data: message.content,
-                selectable: true,
-                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context))
-                    .copyWith(
-                  // Стили кодовых блоков
-                  code: TextStyle(
-                    backgroundColor: colors.surfaceContainerHigh,
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                  ),
-                  codeblockDecoration: BoxDecoration(
-                    color: colors.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-
-            // ─── Тип источника ответа (только для ИИ) ───
-            if (!isUser && message.sourceType != null) ...[
-              const SizedBox(height: 8),
-              _SourceTypeIndicator(sourceType: message.sourceType!),
-            ],
-
-            // ─── Источники (разворачиваемый список) ───
-            if (!isUser &&
-                message.sources != null &&
-                message.sources!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              _SourcesList(sources: message.sources!),
-            ],
-
-            // ─── Кнопка копирования (для ответов ИИ) ───
-            if (!isUser) ...[
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(4),
-                  onTap: () {
-                    Clipboard.setData(ClipboardData(text: message.content));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Ответ скопирован'),
-                        duration: Duration(seconds: 1),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Avatar(isUser: isUser),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SenderName(isUser: isUser),
+                    const SizedBox(height: 6),
+                    if (isUser)
+                      _UserBody(text: message.content)
+                    else
+                      _AiBody(
+                        content: message.content,
+                        sources: message.sources,
+                        onSourceTap: onSourceTap,
                       ),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.copy, size: 14, color: colors.outline),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Копировать',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: colors.outline,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
+                    if (!isUser &&
+                        message.sources != null &&
+                        message.sources!.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      _SourceChips(
+                        sources: message.sources!,
+                        onTap: onSourceTap,
+                      ),
+                    ],
+                    if (!isUser) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      _MessageActions(message: message),
+                    ],
+                  ],
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─────────────────── Индикатор типа источника ───────────────────
+// ─────────────────────── Avatar ───────────────────────
 
-/// Показывает тип источника ответа: RAG найден / не найден / без RAG.
-class _SourceTypeIndicator extends StatelessWidget {
-  final SourceType sourceType;
-
-  const _SourceTypeIndicator({required this.sourceType});
+class _Avatar extends StatelessWidget {
+  final bool isUser;
+  const _Avatar({required this.isUser});
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final userColor =
+        isDark ? AppColorsDark.userAvatar : AppColorsLight.userAvatar;
 
-    late final IconData icon;
-    late final String label;
-    late final Color color;
-
-    switch (sourceType) {
-      case SourceType.ragFound:
-        icon = Icons.check_circle_outline;
-        label = 'Информация найдена в базе знаний';
-        color = Colors.green;
-        break;
-      case SourceType.ragNotFound:
-        icon = Icons.info_outline;
-        label = 'Информация не найдена в базе знаний';
-        color = Colors.orange;
-        break;
-      case SourceType.noRag:
-        icon = Icons.auto_awesome;
-        label = 'Ответ без опоры на внутреннюю базу';
-        color = colors.primary;
-        break;
-      case SourceType.offTopic:
-        icon = Icons.explore_off_outlined;
-        label = 'Запрос вне тематики базы знаний';
-        color = Colors.deepOrange;
-        break;
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontStyle: FontStyle.italic,
-                ),
+    if (isUser) {
+      return Container(
+        width: 30, height: 30,
+        decoration: BoxDecoration(
+          color: userColor,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          'Вы',
+          style: TextStyle(
+            fontFamily: AppFonts.ui,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
           ),
         ),
+      );
+    }
+
+    return Container(
+      width: 30, height: 30,
+      decoration: BoxDecoration(
+        color: colors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      alignment: Alignment.center,
+      child: const AppLogo(size: 18, monochrome: true),
+    );
+  }
+}
+
+class _SenderName extends StatelessWidget {
+  final bool isUser;
+  const _SenderName({required this.isUser});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Text(
+      isUser ? 'Вы' : 'Ассистент',
+      style: TextStyle(
+        fontFamily: AppFonts.display,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: colors.onSurface,
+      ),
+    );
+  }
+}
+
+// ─────────────────────── Body: user ───────────────────────
+
+class _UserBody extends StatelessWidget {
+  final String text;
+  const _UserBody({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return SelectableText(
+      text,
+      style: TextStyle(
+        fontFamily: AppFonts.ui,
+        fontSize: 15, height: 1.65,
+        color: colors.onSurface,
+      ),
+    );
+  }
+}
+
+// ─────────────────────── Body: AI (с inline-сносками) ───────────────────────
+
+class _AiBody extends StatelessWidget {
+  final String content;
+  final List<Source>? sources;
+  final OnSourceTap? onSourceTap;
+  const _AiBody({
+    required this.content,
+    required this.sources,
+    required this.onSourceTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final bodyStyle = TextStyle(
+      fontFamily: AppFonts.ui,
+      fontSize: 15, height: 1.65,
+      color: colors.onSurface,
+    );
+
+    // Если нет источников — рендерим как markdown (сохраняем списки, код и т.п.).
+    // Иначе разбиваем текст по `[N]` и делаем из них кликабельные сноски.
+    if (sources == null || sources!.isEmpty) {
+      return MarkdownBody(
+        data: content,
+        selectable: true,
+        styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+          p: bodyStyle,
+          code: TextStyle(
+            fontFamily: AppFonts.mono, fontSize: 13,
+            backgroundColor: colors.surfaceContainerHighest,
+          ),
+          codeblockDecoration: BoxDecoration(
+            color: colors.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+        ),
+      );
+    }
+
+    return SelectableText.rich(
+      _buildInline(context, content, sources!, bodyStyle),
+      style: bodyStyle,
+    );
+  }
+
+  TextSpan _buildInline(
+    BuildContext context,
+    String text,
+    List<Source> srcs,
+    TextStyle base,
+  ) {
+    final regex = RegExp(r'\[(\d+)\]');
+    final spans = <InlineSpan>[];
+
+    int pos = 0;
+    for (final m in regex.allMatches(text)) {
+      if (m.start > pos) {
+        spans.add(TextSpan(text: text.substring(pos, m.start), style: base));
+      }
+      final index = int.tryParse(m.group(1) ?? '') ?? 0;
+      spans.add(WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: _FootnoteChip(
+          index: index,
+          onTap: () => onSourceTap?.call(index, srcs),
+        ),
+      ));
+      pos = m.end;
+    }
+    if (pos < text.length) {
+      spans.add(TextSpan(text: text.substring(pos), style: base));
+    }
+    return TextSpan(children: spans);
+  }
+}
+
+/// Кликабельная inline-сноска `[N]` в теле ответа ассистента.
+class _FootnoteChip extends StatelessWidget {
+  final int index;
+  final VoidCallback? onTap;
+  const _FootnoteChip({required this.index, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accentBg =
+        isDark ? AppColorsDark.accentBg : AppColorsLight.accentBg;
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 18, height: 18,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: accentBg,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            '$index',
+            style: TextStyle(
+              fontFamily: AppFonts.ui,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────── Source chips ───────────────────────
+
+class _SourceChips extends StatelessWidget {
+  final List<Source> sources;
+  final OnSourceTap? onTap;
+  const _SourceChips({required this.sources, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6, runSpacing: 6,
+      children: [
+        for (var i = 0; i < sources.length; i++)
+          _SourceChip(
+            index: i + 1,
+            source: sources[i],
+            onTap: () => onTap?.call(i + 1, sources),
+          ),
       ],
     );
   }
 }
 
-// ─────────────────── Список источников ───────────────────
+class _SourceChip extends StatefulWidget {
+  final int index;
+  final Source source;
+  final VoidCallback onTap;
+  const _SourceChip({
+    required this.index,
+    required this.source,
+    required this.onTap,
+  });
 
-/// Разворачиваемый список источников (документов), на которых основан ответ.
-class _SourcesList extends StatelessWidget {
-  final List<Source> sources;
+  @override
+  State<_SourceChip> createState() => _SourceChipState();
+}
 
-  const _SourcesList({required this.sources});
+class _SourceChipState extends State<_SourceChip> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceAlt =
+        isDark ? AppColorsDark.surfaceAlt : AppColorsLight.surfaceAlt;
+    final border = isDark ? AppColorsDark.border : AppColorsLight.border;
+    final accentBg =
+        isDark ? AppColorsDark.accentBg : AppColorsLight.accentBg;
+    final accent = Theme.of(context).colorScheme.primary;
+    final text = isDark ? AppColorsDark.text : AppColorsLight.text;
+    final muted = isDark ? AppColorsDark.textMuted : AppColorsLight.textMuted;
 
-    return Theme(
-      // Убираем divider у ExpansionTile
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(left: 8),
-        title: Text(
-          'Источники (${sources.length})',
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colors.primary,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+          decoration: BoxDecoration(
+            color: surfaceAlt,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            border: Border.all(color: _hovered ? accent : border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 16, height: 16,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accentBg,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${widget.index}',
+                  style: TextStyle(
+                    fontFamily: AppFonts.ui, fontSize: 10,
+                    fontWeight: FontWeight.w700, color: accent,
+                  ),
+                ),
               ),
+              const SizedBox(width: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 200),
+                child: Text(
+                  widget.source.documentName,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: AppFonts.ui, fontSize: 12,
+                    color: _hovered ? text : muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        leading: Icon(Icons.menu_book, size: 16, color: colors.primary),
-        children: sources.map((source) {
-          return ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading:
-                Icon(Icons.description_outlined, size: 16, color: colors.outline),
-            title: Text(
-              source.documentName,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            subtitle: source.description != null
-                ? Text(
-                    source.description!,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.onSurfaceVariant,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                : null,
-          );
-        }).toList(),
       ),
     );
+  }
+}
+
+// ─────────────────────── Actions: status chip + copy ───────────────────────
+
+class _MessageActions extends StatefulWidget {
+  final Message message;
+  const _MessageActions({required this.message});
+
+  @override
+  State<_MessageActions> createState() => _MessageActionsState();
+}
+
+class _MessageActionsState extends State<_MessageActions> {
+  bool _copied = false;
+
+  Future<void> _onCopy() async {
+    await Clipboard.setData(ClipboardData(text: widget.message.content));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (widget.message.sourceType != null) ...[
+          SourceTypeChip(type: widget.message.sourceType!),
+          const SizedBox(width: AppSpacing.md),
+        ],
+        _CopyButton(copied: _copied, onTap: _onCopy),
+      ],
+    );
+  }
+}
+
+class _CopyButton extends StatelessWidget {
+  final bool copied;
+  final VoidCallback onTap;
+  const _CopyButton({required this.copied, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dim = isDark ? AppColorsDark.textDim : AppColorsLight.textDim;
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(copied ? Icons.check : Icons.content_copy_outlined,
+              size: 13, color: dim),
+          const SizedBox(width: 5),
+          Text(
+            copied ? 'Скопировано' : 'Копировать',
+            style: TextStyle(
+              fontFamily: AppFonts.ui, fontSize: 11.5, color: dim,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────── SourceTypeChip ───────────────────────
+
+/// Чип типа источника ответа: 4 состояния (ragFound / ragNotFound /
+/// noRag / offTopic). Использует цвета из темы (success / warning /
+/// textMuted / danger).
+class SourceTypeChip extends StatelessWidget {
+  final SourceType type;
+  const SourceTypeChip({super.key, required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final (label, icon, color) = _resolve(isDark);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: AppFonts.ui, fontSize: 11,
+              fontWeight: FontWeight.w500, color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  (String, IconData, Color) _resolve(bool isDark) {
+    switch (type) {
+      case SourceType.ragFound:
+        return (
+          'Источники найдены',
+          Icons.check_circle_outline,
+          isDark ? AppColorsDark.success : AppColorsLight.success,
+        );
+      case SourceType.ragNotFound:
+        return (
+          'В базе не найдено',
+          Icons.info_outline,
+          isDark ? AppColorsDark.warning : AppColorsLight.warning,
+        );
+      case SourceType.noRag:
+        return (
+          'Общий ответ',
+          Icons.auto_awesome,
+          isDark ? AppColorsDark.textMuted : AppColorsLight.textMuted,
+        );
+      case SourceType.offTopic:
+        return (
+          'Вне тематики',
+          Icons.explore_off_outlined,
+          isDark ? AppColorsDark.danger : AppColorsLight.danger,
+        );
+    }
   }
 }
