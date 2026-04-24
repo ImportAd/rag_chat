@@ -49,3 +49,28 @@ class DateFormatter {
     }
   }
 }
+
+/// Группа дат для разделения списка чатов в сайдбаре.
+enum ChatDateGroup {
+  today('Сегодня'),
+  yesterday('Вчера'),
+  lastWeek('Последние 7 дней'),
+  earlier('Ранее');
+
+  final String label;
+  const ChatDateGroup(this.label);
+}
+
+/// Определить группу для даты обновления чата.
+ChatDateGroup chatDateGroup(DateTime date, {DateTime? now}) {
+  final n = (now ?? DateTime.now()).toLocal();
+  final today = DateTime(n.year, n.month, n.day);
+  final local = date.toLocal();
+  final day = DateTime(local.year, local.month, local.day);
+  final diff = today.difference(day).inDays;
+
+  if (diff <= 0) return ChatDateGroup.today;
+  if (diff == 1) return ChatDateGroup.yesterday;
+  if (diff < 7) return ChatDateGroup.lastWeek;
+  return ChatDateGroup.earlier;
+}

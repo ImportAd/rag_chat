@@ -1,62 +1,134 @@
-/// Конфигурация текстов, зависящих от роли пользователя.
+/// Тексты welcome-экрана и плейсхолдеры по роли (студент / сотрудник / админ).
 ///
-/// Приветственные сообщения, плейсхолдеры ввода, текст пустых состояний.
-/// Определяется ролью из [User.role] (student / staff / admin).
-///
-/// Два варианта работы приветствия:
-/// (а) Бэкенд вставляет greeting при первом /send — фронтенд просто рендерит.
-/// (б) Фронтенд показывает локальный шаблон сразу (быстрее, без запроса).
-/// Мы используем вариант (б) для мгновенного отклика, но бэкенд тоже
-/// вставит приветствие — дубликат фильтруется по message_count.
+/// Бэкенд тоже умеет вставлять приветствие при первом /send — UI это
+/// фильтрует по message_count. Здесь — локальные шаблоны для мгновенного
+/// показа welcome-экрана без запроса к серверу.
 library;
 
 import '../../../auth/domain/entities/user.dart';
 
-/// Тексты, зависящие от роли пользователя.
+/// Промпт-карточка на welcome-экране.
+class WelcomePrompt {
+  /// Эмодзи-иконка слева (24×24 в плашке accentBg).
+  final String emoji;
+
+  /// Заголовок (13.5 / 500).
+  final String title;
+
+  /// Подсказка (12 / muted).
+  final String hint;
+
+  const WelcomePrompt({
+    required this.emoji,
+    required this.title,
+    required this.hint,
+  });
+}
+
 class RoleTexts {
   RoleTexts._();
 
-  // ═══════════════════════ Приветствия ═══════════════════════
+  // ═══════════════════════ Welcome ═══════════════════════
 
-  /// Приветственное сообщение для студентов.
+  /// Главный заголовок welcome-экрана: «Здравствуйте, Иван» / «Добрый день, …».
   ///
-  /// Отображается при создании нового чата / открытии пустого диалога.
-  /// Дружелюбный тон, фокус на учёбу и право.
-  static const String greetingStudent =
-      'Привет! Я помощник Университета Правосудия. '
-      'Могу помочь с вопросами по учёбе, предметам, расписанию и праву. '
-      'Задайте свой вопрос!';
-
-  /// Приветственное сообщение для сотрудников.
-  ///
-  /// Деловой тон, фокус на рабочие документы.
-  static const String greetingStaff =
-      'Здравствуйте! Я ИИ-помощник для работы с документами. '
-      'Могу найти информацию в загруженных документах вашего отдела. '
-      'Чем могу помочь?';
-
-  /// Получить приветствие по роли
-  static String greeting(UserRole role) {
-    switch (role) {
+  /// Для студента — обращение по имени, для сотрудника — по имени-отчеству,
+  /// fallback — первое слово из ФИО или просто «Здравствуйте!».
+  static String welcomeTitle(User user) {
+    final parts = user.fullName.trim().split(RegExp(r'\s+'));
+    switch (user.role) {
       case UserRole.student:
-        return greetingStudent;
+        // Имя у нас — второе слово в ФИО («Фамилия Имя Отчество»).
+        final firstName = parts.length >= 2 ? parts[1] : parts.first;
+        return 'Здравствуйте, $firstName';
       case UserRole.staff:
       case UserRole.admin:
-        return greetingStaff;
+        if (parts.length >= 3) {
+          return 'Добрый день, ${parts[1]} ${parts[2]}';
+        }
+        if (parts.length == 2) {
+          return 'Добрый день, ${parts[1]}';
+        }
+        return 'Добрый день!';
     }
   }
 
-  // ═══════════════════════ Плейсхолдеры ввода ═══════════════════════
+  /// Подзаголовок welcome-экрана.
+  static String welcomeSubtitle(UserRole role) {
+    switch (role) {
+      case UserRole.student:
+        return 'Спросите об учёбе, расписании, документах — '
+            'ассистент найдёт ответ во внутренней базе университета.';
+      case UserRole.staff:
+      case UserRole.admin:
+        return 'Задайте вопрос о нормативных актах, процедурах, '
+            'регламентах и календаре — ответ опирается на внутренние документы.';
+    }
+  }
 
-  /// Плейсхолдер поля ввода для студентов.
-  static const String inputHintStudent =
-      'Задайте вопрос по учёбе или праву...';
+  // ═══════════════════════ Промпт-карточки 2×2 ═══════════════════════
 
-  /// Плейсхолдер поля ввода для сотрудников.
-  static const String inputHintStaff =
-      'Поиск по рабочим документам...';
+  static const List<WelcomePrompt> _student = [
+    WelcomePrompt(
+      emoji: '📅',
+      title: 'Когда начинается сессия?',
+      hint: 'Сроки зимней и летней экзаменационных сессий',
+    ),
+    WelcomePrompt(
+      emoji: '📄',
+      title: 'Как получить справку с места учёбы?',
+      hint: 'Через личный кабинет или деканат',
+    ),
+    WelcomePrompt(
+      emoji: '🎓',
+      title: 'Правила пересдачи экзаменов',
+      hint: 'Порядок, сроки, допуски',
+    ),
+    WelcomePrompt(
+      emoji: '📚',
+      title: 'Требования к курсовой работе',
+      hint: 'Оформление, сроки, научный руководитель',
+    ),
+  ];
 
-  /// Получить плейсхолдер по роли
+  static const List<WelcomePrompt> _staff = [
+    WelcomePrompt(
+      emoji: '📄',
+      title: 'Регламент рабочего времени',
+      hint: 'Графики, учёт, отпуска',
+    ),
+    WelcomePrompt(
+      emoji: '⚖️',
+      title: 'Процедура утверждения УМК',
+      hint: 'Этапы согласования и сроки',
+    ),
+    WelcomePrompt(
+      emoji: '📚',
+      title: 'Положение о научной работе',
+      hint: 'Публикации, конференции, отчётность',
+    ),
+    WelcomePrompt(
+      emoji: '📅',
+      title: 'Календарь заседаний кафедры',
+      hint: 'Ближайшие и регулярные',
+    ),
+  ];
+
+  static List<WelcomePrompt> prompts(UserRole role) {
+    switch (role) {
+      case UserRole.student:
+        return _student;
+      case UserRole.staff:
+      case UserRole.admin:
+        return _staff;
+    }
+  }
+
+  // ═══════════════════════ Плейсхолдер input'а ═══════════════════════
+
+  static const String inputHintStudent = 'Спросите у ассистента…';
+  static const String inputHintStaff = 'Спросите у ассистента…';
+
   static String inputHint(UserRole role) {
     switch (role) {
       case UserRole.student:
@@ -64,27 +136,6 @@ class RoleTexts {
       case UserRole.staff:
       case UserRole.admin:
         return inputHintStaff;
-    }
-  }
-
-  // ═══════════════════════ Пустые состояния ═══════════════════════
-
-  /// Текст кнопки / описания при пустом чате — студент
-  static const String emptyChatSubtitleStudent =
-      'Задайте вопрос по учёбе, предметам или праву';
-
-  /// Текст кнопки / описания при пустом чате — сотрудник
-  static const String emptyChatSubtitleStaff =
-      'Спросите о содержимом документов вашего отдела';
-
-  /// Получить текст пустого чата по роли
-  static String emptyChatSubtitle(UserRole role) {
-    switch (role) {
-      case UserRole.student:
-        return emptyChatSubtitleStudent;
-      case UserRole.staff:
-      case UserRole.admin:
-        return emptyChatSubtitleStaff;
     }
   }
 }
