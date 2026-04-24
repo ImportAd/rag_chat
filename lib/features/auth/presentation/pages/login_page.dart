@@ -8,11 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/theme.dart';
 import '../../../../core/utils/validators.dart';
-import '../../../../core/widgets/common_widgets.dart';
+import '../../../../core/widgets/pattern_columns.dart';
 import '../bloc/auth_bloc.dart';
+import '../widgets/auth_widgets.dart';
 
-/// Страница входа — первый экран для неавторизованного пользователя.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -21,13 +22,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Контроллеры полей ввода
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Флаг видимости пароля
   bool _obscurePassword = true;
+  bool _rememberMe = true;
 
   @override
   void dispose() {
@@ -36,7 +36,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// Отправить форму входа
   void _onLogin() {
     if (!_formKey.currentState!.validate()) return;
 
@@ -51,12 +50,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          // При успешной авторизации роутер сам перенаправит на /chat
           if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -66,132 +63,160 @@ class _LoginPageState extends State<LoginPage> {
             );
           }
         },
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // ─── Логотип / заголовок ───
-                  Icon(
-                    Icons.school_rounded,
-                    size: 64,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Университет правосудия',
-                    style: textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Чат с ИИ-ассистентом',
-                    style: textTheme.bodyLarge?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 40),
-
-                  // ─── Форма входа ───
-                  Form(
+        child: Stack(
+          children: [
+            const Positioned.fill(child: PatternColumns()),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Form(
                     key: _formKey,
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // Поле логина
-                        TextFormField(
-                          controller: _usernameController,
-                          validator: Validators.login,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Логин',
-                            prefixIcon: Icon(Icons.person_outline),
-                            border: OutlineInputBorder(),
-                          ),
+                        const AuthBrandHeader(subtitle: 'Вход в систему'),
+                        const SizedBox(height: AppSpacing.xxl),
+                        const AuthTitle(text: 'Добро пожаловать'),
+                        const SizedBox(height: AppSpacing.xs),
+                        const AuthSubtitle(
+                          text:
+                              'Войдите, чтобы продолжить работу с ассистентом.',
                         ),
-                        const SizedBox(height: 16),
-
-                        // Поле пароля
-                        TextFormField(
-                          controller: _passwordController,
-                          validator: Validators.password,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _onLogin(),
-                          decoration: InputDecoration(
-                            labelText: 'Пароль',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
+                        const SizedBox(height: AppSpacing.xl),
+                        AuthLabeledField(
+                          label: 'Логин',
+                          child: TextFormField(
+                            controller: _usernameController,
+                            validator: Validators.login,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              hintText: 'Ваш логин или номер зачётки',
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-
-                        // Кнопка «Войти»
-                        BlocBuilder<AuthBloc, AuthState>(
-                          builder: (context, state) {
-                            final isLoading = state is AuthLoading;
-                            return SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: FilledButton(
-                                onPressed: isLoading ? null : _onLogin,
-                                child: isLoading
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Text('Войти'),
+                        const SizedBox(height: AppSpacing.lg),
+                        AuthLabeledField(
+                          label: 'Пароль',
+                          child: TextFormField(
+                            controller: _passwordController,
+                            validator: Validators.password,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _onLogin(),
+                            decoration: InputDecoration(
+                              hintText: '••••••••',
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  size: 20,
+                                ),
+                                onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _RememberRow(
+                          remember: _rememberMe,
+                          onChanged: (v) =>
+                              setState(() => _rememberMe = v ?? false),
+                          onForgot: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Восстановление пароля скоро будет доступно. '
+                                  'Обратитесь в деканат или к администратору.',
+                                ),
                               ),
                             );
                           },
                         ),
+                        const SizedBox(height: AppSpacing.xl),
+                        BlocBuilder<AuthBloc, AuthState>(
+                          builder: (context, state) {
+                            final isLoading = state is AuthLoading;
+                            return AuthPrimaryButton(
+                              label: 'Войти',
+                              loading: isLoading,
+                              onPressed: _onLogin,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        AuthFooterLink(
+                          text: 'Нет аккаунта?',
+                          action: 'Зарегистрироваться',
+                          onTap: () => context.go('/register'),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // ─── Ссылка на регистрацию ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Нет аккаунта? ',
-                        style: textTheme.bodyMedium,
-                      ),
-                      TextButton(
-                        onPressed: () => context.go('/register'),
-                        child: const Text('Зарегистрироваться'),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Строка «чекбокс + Запомнить меня … Забыли пароль?». Используется только на
+/// login — поэтому private и живёт здесь, а не в общих auth_widgets.
+class _RememberRow extends StatelessWidget {
+  final bool remember;
+  final ValueChanged<bool?> onChanged;
+  final VoidCallback onForgot;
+  const _RememberRow({
+    required this.remember,
+    required this.onChanged,
+    required this.onForgot,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final muted = isDark ? AppColorsDark.textMuted : AppColorsLight.textMuted;
+    final accent = Theme.of(context).colorScheme.primary;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 20, height: 20,
+          child: Checkbox(
+            value: remember,
+            onChanged: onChanged,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          'Запомнить меня',
+          style: TextStyle(
+            fontFamily: AppFonts.ui, fontSize: 12, color: muted,
+          ),
+        ),
+        const Spacer(),
+        GestureDetector(
+          onTap: onForgot,
+          behavior: HitTestBehavior.opaque,
+          child: Text(
+            'Забыли пароль?',
+            style: TextStyle(
+              fontFamily: AppFonts.ui, fontSize: 12,
+              fontWeight: FontWeight.w500, color: accent,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
